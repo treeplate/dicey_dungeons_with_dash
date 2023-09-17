@@ -15,6 +15,7 @@ sealed class Player {
 
   /// all caps
   String get abilityName;
+  String get abilityDescription;
   bool get hasAbility;
   double abilityProgress = 0;
   late double oldAbilityProgress = abilityProgress;
@@ -61,6 +62,12 @@ sealed class Player {
     return machines.every(
             (element) => element.every((element) => element.hidden == true)) ||
         dice.every((element) => !element.usable);
+  }
+  
+  @mustCallSuper
+  void ability(Player opponent) {
+    assert(abilityProgress == 1, 'contract violation');
+    abilityProgress = 0;
   }
 
   // returns true if this dies and deadCallback returns true
@@ -112,9 +119,17 @@ class DashBird extends Player {
 
   @override
   String get abilityName => 'AERIAL POKE';
+  @override
+  String get abilityDescription => 'Does 6 damage.';
 
   @override
   bool get hasAbility => true;
+
+  @override
+  void ability(Player opponent) {
+    super.ability(opponent);
+    opponent.reduceHealth(6, this);
+  }
 }
 
 class AngryCow extends Player {
@@ -133,6 +148,8 @@ class AngryCow extends Player {
 
   @override
   String get abilityName => '__Test__';
+  @override
+  String get abilityDescription => '__tesst__';
   @override
   bool get hasAbility => false;
 }

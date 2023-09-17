@@ -99,21 +99,22 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void reset() {
-    
     setState(() {
       opponent.health = opponent.maxHealth;
       opponent.abilityProgress = 0;
       for (List<Machine> element in opponent.machines) {
         for (Machine element in element) {
           for (DieSlot element in element.dieSlots) {
-            element is CountdownDieSlot ? element.countdown = element.maxCountdown : null;
+            element is CountdownDieSlot
+                ? element.countdown = element.maxCountdown
+                : null;
           }
         }
       }
       dashbird.health = dashbird.maxHealth;
       dashbird.abilityProgress = 0;
-      if(dashbird.turnHappening) {
-      dashbird.endTurn();
+      if (dashbird.turnHappening) {
+        dashbird.endTurn();
       } else if (opponent.turnHappening) {
         opponent.endTurn();
       }
@@ -159,7 +160,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Text(
                           seeEnemyMoves ? 'see own moves' : 'see enemy moves')),
                 ),
-                Expanded(flex: 1, child: CharacterStats(player: opponent)),
+                Expanded(
+                    flex: 1,
+                    child: CharacterStats(
+                      player: opponent,
+                      opponent: dashbird,
+                      setState: setState,
+                    )),
                 renderPlayer(opponent),
               ],
             ),
@@ -190,7 +197,11 @@ class _MyHomePageState extends State<MyHomePage> {
                 renderPlayer(dashbird),
                 Expanded(
                   flex: 1,
-                  child: CharacterStats(player: dashbird),
+                  child: CharacterStats(
+                    player: dashbird,
+                    opponent: opponent,
+                    setState: setState,
+                  ),
                 ),
                 Expanded(
                   flex: 3,
@@ -229,15 +240,25 @@ class _MyHomePageState extends State<MyHomePage> {
     void onValue(value) {
       if (opponent.dice.every((element) => element.usable == false)) {
         setState(() {
-          if(!opponent.turnHappening) return;
+          if (!opponent.turnHappening) return;
           opponent.endTurn();
           dashbird.startTurn();
           oldDice.addAll(dashbird.dice);
           seeEnemyMoves = false;
         });
       } else {
-                          insertDie(opponent.dice.firstWhere((element) => element.usable), setState, 
-                              (a) => a ? opponent.machines.single.single.standby[0] = opponent.dice.firstWhere((element) => element.usable) : opponent.machines.single.single.standby[0] = null, opponent, dashbird, oldDice, (){}, opponent.machines.single.single);
+        insertDie(
+            opponent.dice.firstWhere((element) => element.usable),
+            setState,
+            (a) => a
+                ? opponent.machines.single.single.standby[0] =
+                    opponent.dice.firstWhere((element) => element.usable)
+                : opponent.machines.single.single.standby[0] = null,
+            opponent,
+            dashbird,
+            oldDice,
+            () {},
+            opponent.machines.single.single);
         Future.delayed(const Duration(seconds: 1)).then(onValue);
       }
     }
@@ -250,9 +271,13 @@ class CharacterStats extends StatelessWidget {
   const CharacterStats({
     super.key,
     required this.player,
+    required this.opponent,
+    required this.setState,
   });
 
   final Player player;
+  final Player opponent;
+  final void Function(void Function()) setState;
 
   @override
   Widget build(BuildContext context) {
@@ -305,41 +330,63 @@ class CharacterStats extends StatelessWidget {
         if (player.hasAbility)
           Expanded(
             flex: 1,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                      color: Color.fromARGB(255, 101, 91, 0)),
-                ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Container(
+            child: Tooltip(
+              message: player.abilityDescription,
+              child: TextButton(
+                onPressed: player.abilityProgress == 1
+                    ? () {
+                        setState(() {
+                          player.ability(opponent);
+                          Future.delayed(const Duration(milliseconds: 250))
+                              .then((value) => setState(() {
+                                    player.oldHealth = player.health;
+                                    player.oldAbilityProgress =
+                                        player.abilityProgress;
+                                    opponent.oldHealth = opponent.health;
+                                    opponent.oldAbilityProgress =
+                                        opponent.abilityProgress;
+                                  }));
+                        });
+                      }
+                    : null,
+                child: Stack(
+                  children: [
+                    Container(
                       decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        color: Colors.green,
-                      ),
-                      width: constraints.maxWidth * player.abilityProgress,
-                    );
-                  },
+                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          color: Color.fromARGB(255, 101, 91, 0)),
+                    ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Container(
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                            color: Colors.green,
+                          ),
+                          width: constraints.maxWidth * player.abilityProgress,
+                        );
+                      },
+                    ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Container(
+                          decoration: BoxDecoration(
+                            borderRadius: player.oldAbilityProgress == 1
+                                ? const BorderRadius.all(Radius.circular(10))
+                                : const BorderRadius.only(
+                                    topLeft: Radius.circular(10),
+                                    bottomLeft: Radius.circular(10)),
+                            color: const Color.fromARGB(255, 188, 171, 18),
+                          ),
+                          width:
+                              constraints.maxWidth * (player.oldAbilityProgress),
+                        );
+                      },
+                    ),
+                    Center(child: Text(player.abilityName)),
+                  ],
                 ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        borderRadius: player.oldAbilityProgress == 1
-                            ? const BorderRadius.all(Radius.circular(10))
-                            : const BorderRadius.only(
-                                topLeft: Radius.circular(10),
-                                bottomLeft: Radius.circular(10)),
-                        color: const Color.fromARGB(255, 188, 171, 18),
-                      ),
-                      width: constraints.maxWidth * (player.oldAbilityProgress),
-                    );
-                  },
-                ),
-                Center(child: Text(player.abilityName)),
-              ],
+              ),
             ),
           ),
         const Expanded(child: SizedBox.expand()),
@@ -461,9 +508,14 @@ class _MachineWidgetState extends State<MachineWidget> {
                         builder: (BuildContext context,
                             List<Die?> candidateData,
                             List<dynamic> rejectedData) {
-                          if (widget.machine.standby[widget.machine.dieSlots.indexOf(target)] is Die) {
+                          if (widget.machine.standby[
+                              widget.machine.dieSlots.indexOf(target)] is Die) {
                             return dieWidget(
-                                widget.machine.standby[widget.machine.dieSlots.indexOf(target)]!.copyWith(visible: true)!,
+                                widget
+                                    .machine
+                                    .standby[widget.machine.dieSlots
+                                        .indexOf(target)]!
+                                    .copyWith(visible: true)!,
                                 false,
                                 80,
                                 80);
@@ -505,7 +557,9 @@ class _MachineWidgetState extends State<MachineWidget> {
                           insertDie(
                               data,
                               widget.setState,
-                              (a) => a ? widget.machine.standby[0] = hoveringDie : widget.machine.standby[0] = null,
+                              (a) => a
+                                  ? widget.machine.standby[0] = hoveringDie
+                                  : widget.machine.standby[0] = null,
                               widget.player,
                               widget.opponent,
                               widget.oldDice,

@@ -553,13 +553,12 @@ class _MachineWidgetState extends State<MachineWidget> {
                           return data != null;
                         },
                         onAccept: (Die data) {
-                          hoveringDie = null;
                           insertDie(
                               data,
                               widget.setState,
                               (a) => a
                                   ? widget.machine.standby[0] = hoveringDie
-                                  : widget.machine.standby[0] = null,
+                                  : widget.machine.standby[0] = hoveringDie = null,
                               widget.player,
                               widget.opponent,
                               widget.oldDice,

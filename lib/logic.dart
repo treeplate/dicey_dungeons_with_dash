@@ -11,7 +11,7 @@ sealed class Player {
   int diceCount;
   int rollDie();
   final List<Die> dice = [];
-  final List<List<Machine>> machines;
+  final List<List<Machine?>> machines;
 
   /// all caps
   String get abilityName;
@@ -59,11 +59,11 @@ sealed class Player {
 
       updated();
     });
-    return machines.every(
-            (element) => element.every((element) => element.hidden == true)) ||
+    return machines.every((element) =>
+            element.every((element) => (element?.hidden ?? true) == true)) ||
         dice.every((element) => !element.usable);
   }
-  
+
   @mustCallSuper
   void ability(Player opponent) {
     assert(abilityProgress == 1, 'contract violation');
@@ -89,11 +89,11 @@ sealed class Player {
   void endTurn() {
     assert(turnHappening, 'contract violation');
     dice.clear();
-    assert(machines.length <= 3);
-    for (List<Machine> cols in machines) {
+    assert(machines.length == 3);
+    for (List<Machine?> cols in machines) {
       assert(cols.length <= 2);
-      for (Machine machine in cols) {
-        machine.reset();
+      for (Machine? machine in cols) {
+        if (machine != null) machine.reset();
       }
     }
     turnHappening = false;
@@ -201,14 +201,14 @@ class SwordMachine extends Machine {
 
   @override
   bool activate(Die die, Player player, Player opponent) {
-    return !opponent.reduceHealth(die.number, player);
+    return !opponent.reduceHealth(die.number == 3 ? 18 : die.number, player);
   }
 
   @override
-  bool get tall => false;
+  bool get tall => true;
 
   @override
-  String get description => "Do <> damage.";
+  String get description => "\nDo <> damage.";
 
   @override
   String get name => 'SWORD';
@@ -236,10 +236,10 @@ class RerollMachine extends Machine {
   }
 
   @override
-  bool get tall => false;
+  bool get tall => true;
 
   @override
-  String get description => "Rerolls a die. ($uses uses left)";
+  String get description => "Reroll a die.\n($uses uses left)";
 
   @override
   String get name => 'REROLL';

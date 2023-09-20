@@ -1,5 +1,6 @@
 import 'package:dice_icons/dice_icons.dart';
 import 'package:dicey_dungeons_with_dash/logic.dart';
+import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 
 const Color darkRed = Color.fromARGB(255, 125, 20, 12);
@@ -40,8 +41,11 @@ class _MyHomePageState extends State<MyHomePage> {
     [
       [
         SwordMachine(),
+      ],
+      [
         RerollMachine(),
       ],
+      [null, null],
     ],
     lose,
     () => setState(() {}),
@@ -50,9 +54,11 @@ class _MyHomePageState extends State<MyHomePage> {
     20,
     2,
     [
+      [null, null],
       [
         ChargeMachine(),
       ],
+      [null, null],
     ],
     win,
     () => setState(() {}),
@@ -75,7 +81,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
-    reset();
+    seeEnemyMoves = false;
+    Future.delayed(const Duration(milliseconds: 250)).then((x) => reset());
     return true;
   }
 
@@ -94,7 +101,8 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
-    reset();
+    seeEnemyMoves = false;
+    Future.delayed(const Duration(milliseconds: 250)).then((x) => reset());
     return true;
   }
 
@@ -102,12 +110,14 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       opponent.health = opponent.maxHealth;
       opponent.abilityProgress = 0;
-      for (List<Machine> element in opponent.machines) {
-        for (Machine element in element) {
-          for (DieSlot element in element.dieSlots) {
-            element is CountdownDieSlot
-                ? element.countdown = element.maxCountdown
-                : null;
+      for (List<Machine?> element in opponent.machines) {
+        for (Machine? element in element) {
+          if (element != null) {
+            for (DieSlot element in element.dieSlots) {
+              element is CountdownDieSlot
+                  ? element.countdown = element.maxCountdown
+                  : null;
+            }
           }
         }
       }
@@ -144,8 +154,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   flex: 3,
                   child: Row(
                     children: opponent.dice
-                        .map((e) =>
-                            dieWidget(e, !oldDice.contains(e), e.size * 80, 80))
+                        .map((e) => dieWidget(e, !oldDice.contains(e),
+                            e.size * kDieSize, kDieSize))
                         .toList(),
                   ),
                 ),
@@ -207,21 +217,23 @@ class _MyHomePageState extends State<MyHomePage> {
                   flex: 3,
                   child: Row(
                     children: dashbird.dice
-                        .map((e) =>
-                            dieWidget(e, !oldDice.contains(e), e.size * 80, 80))
+                        .map((e) => dieWidget(e, !oldDice.contains(e),
+                            e.size * kDieSize, kDieSize))
                         .toList(),
                   ),
                 ),
                 Expanded(
                   flex: 1,
                   child: TextButton(
+                    onPressed: dashbird.turnHappening
+                        ? () {
+                            setState(endTurn);
+                          }
+                        : null,
                     child: const Row(children: [
                       Text('End Turn'),
                       Icon(Icons.arrow_forward)
                     ]),
-                    onPressed: () {
-                      setState(endTurn);
-                    },
                   ),
                 ),
               ],
@@ -238,7 +250,10 @@ class _MyHomePageState extends State<MyHomePage> {
     oldDice.addAll(opponent.dice);
     seeEnemyMoves = true;
     void onValue(value) {
-      if (opponent.dice.every((element) => element.usable == false)) {
+      // AI of the cow
+      if (opponent.dice.every((element) => element.usable == false) ||
+          opponent.machines
+              .every((e) => e.every((element) => element?.hidden ?? true))) {
         setState(() {
           if (!opponent.turnHappening) return;
           opponent.endTurn();
@@ -251,14 +266,14 @@ class _MyHomePageState extends State<MyHomePage> {
             opponent.dice.firstWhere((element) => element.usable),
             setState,
             (a) => a
-                ? opponent.machines.single.single.standby[0] =
+                ? opponent.machines[1].single!.standby[0] =
                     opponent.dice.firstWhere((element) => element.usable)
-                : opponent.machines.single.single.standby[0] = null,
+                : opponent.machines[1].single!.standby[0] = null,
             opponent,
             dashbird,
             oldDice,
             () {},
-            opponent.machines.single.single);
+            opponent.machines[1].single!);
         Future.delayed(const Duration(seconds: 1)).then(onValue);
       }
     }
@@ -291,15 +306,20 @@ class CharacterStats extends StatelessWidget {
             children: [
               Container(
                 decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                  borderRadius: BorderRadius.all(Radius.circular(kRadius)),
                   color: darkRed,
                 ),
               ),
               LayoutBuilder(
                 builder: (context, constraints) {
                   return Container(
-                    decoration: const BoxDecoration(
-                      borderRadius: BorderRadius.all(Radius.circular(10)),
+                    decoration: BoxDecoration(
+                      borderRadius: player.oldHealth == player.maxHealth
+                          ? const BorderRadius.all(Radius.circular(kRadius))
+                          : const BorderRadius.only(
+                              topLeft: Radius.circular(kRadius),
+                              bottomLeft: Radius.circular(kRadius),
+                            ),
                       color: Colors.green,
                     ),
                     width: constraints.maxWidth *
@@ -312,10 +332,11 @@ class CharacterStats extends StatelessWidget {
                   return Container(
                     decoration: BoxDecoration(
                       borderRadius: player.health == player.maxHealth
-                          ? const BorderRadius.all(Radius.circular(10))
+                          ? const BorderRadius.all(Radius.circular(kRadius))
                           : const BorderRadius.only(
-                              topLeft: Radius.circular(10),
-                              bottomLeft: Radius.circular(10)),
+                              topLeft: Radius.circular(kRadius),
+                              bottomLeft: Radius.circular(kRadius),
+                            ),
                       color: Colors.red,
                     ),
                     width: constraints.maxWidth *
@@ -353,14 +374,21 @@ class CharacterStats extends StatelessWidget {
                   children: [
                     Container(
                       decoration: const BoxDecoration(
-                          borderRadius: BorderRadius.all(Radius.circular(10)),
+                          borderRadius:
+                              BorderRadius.all(Radius.circular(kRadius)),
                           color: Color.fromARGB(255, 101, 91, 0)),
                     ),
                     LayoutBuilder(
                       builder: (context, constraints) {
                         return Container(
-                          decoration: const BoxDecoration(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                          decoration:  BoxDecoration(
+                            borderRadius:
+                                player.abilityProgress == 1
+                                ? const BorderRadius.all(
+                                    Radius.circular(kRadius))
+                                : const BorderRadius.only(
+                                    topLeft: Radius.circular(kRadius),
+                                    bottomLeft: Radius.circular(kRadius)),
                             color: Colors.green,
                           ),
                           width: constraints.maxWidth * player.abilityProgress,
@@ -372,14 +400,15 @@ class CharacterStats extends StatelessWidget {
                         return Container(
                           decoration: BoxDecoration(
                             borderRadius: player.oldAbilityProgress == 1
-                                ? const BorderRadius.all(Radius.circular(10))
+                                ? const BorderRadius.all(
+                                    Radius.circular(kRadius))
                                 : const BorderRadius.only(
-                                    topLeft: Radius.circular(10),
-                                    bottomLeft: Radius.circular(10)),
+                                    topLeft: Radius.circular(kRadius),
+                                    bottomLeft: Radius.circular(kRadius)),
                             color: const Color.fromARGB(255, 188, 171, 18),
                           ),
-                          width:
-                              constraints.maxWidth * (player.oldAbilityProgress),
+                          width: constraints.maxWidth *
+                              (player.oldAbilityProgress),
                         );
                       },
                     ),
@@ -409,14 +438,47 @@ Widget renderPlayer(Player player) {
   }
 }
 
+const double kRadius = 10;
+const double kMachineWidth = 173;
+const double kShortMachineHeight = 101;
+const double kTallMachineHeight =
+    kShortMachineHeight + kTotalShortMachineHeight;
+const double kInnerMachinePadding = 5;
+const double kOuterMachinePadding = 5;
+const double kTotalMachineWidth =
+    kMachineWidth + kInnerMachinePadding * 2 + kOuterMachinePadding * 2;
+const double kFontSize = 15;
+const double kTotalShortMachineHeight = kFontSize +
+    kShortMachineHeight +
+    kInnerMachinePadding * 2 +
+    kOuterMachinePadding * 2;
+const double kTotalTallMachineHeight = kFontSize +
+    kTallMachineHeight +
+    kInnerMachinePadding * 2 +
+    kOuterMachinePadding * 2;
+const double kDieSize = 80;
+
 Widget renderMachine(
     Player player,
-    Machine machine,
+    Machine? machine,
     Player opponent,
     void Function(void Function()) setState,
     void Function() endTurn,
     Set<Die> oldDice) {
-  if (machine.hidden) return Container();
+  if (machine == null || machine.hidden) {
+    return DottedBorder(
+      color: Colors.white,
+      radius: const Radius.circular(kRadius),
+      borderType: BorderType.RRect,
+      padding: EdgeInsets.zero,
+      child: SizedBox(
+        width: kTotalMachineWidth,
+        height: (machine != null && machine.tall
+            ? kTotalTallMachineHeight
+            : kTotalShortMachineHeight),
+      ),
+    );
+  }
   switch (machine) {
     case SwordMachine():
       return MachineWidget(
@@ -486,98 +548,121 @@ class _MachineWidgetState extends State<MachineWidget> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: const BorderRadius.all(Radius.circular(10)),
+        borderRadius: const BorderRadius.all(Radius.circular(kRadius)),
         color: widget.color1,
       ),
       child: Column(
         children: [
-          Text(widget.machine.name),
+          Text(
+            widget.machine.name,
+            style: const TextStyle(fontSize: kFontSize, height: 1),
+          ),
           Padding(
-            padding: const EdgeInsets.all(5),
+            padding: const EdgeInsets.all(kOuterMachinePadding),
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(Radius.circular(10)),
+                borderRadius: const BorderRadius.all(Radius.circular(kRadius)),
                 color: widget.color2,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(5.0),
-                child: Column(
-                  children: [
-                    for (DieSlot target in widget.machine.dieSlots)
-                      DragTarget<Die>(
-                        builder: (BuildContext context,
-                            List<Die?> candidateData,
-                            List<dynamic> rejectedData) {
-                          if (widget.machine.standby[
-                              widget.machine.dieSlots.indexOf(target)] is Die) {
-                            return dieWidget(
-                                widget
-                                    .machine
-                                    .standby[widget.machine.dieSlots
-                                        .indexOf(target)]!
-                                    .copyWith(visible: true)!,
-                                false,
-                                80,
-                                80);
-                          }
-                          switch (target) {
-                            case NormalDieSlot():
-                              return const Icon(
-                                DiceIcons.dice0,
-                                size: 80,
-                              );
-                            case CountdownDieSlot():
-                              return Stack(
-                                children: [
-                                  const Icon(
-                                    DiceIcons.dice0,
-                                    size: 80,
-                                  ),
-                                  SizedBox(
-                                    width: 80,
-                                    height: 80,
-                                    child: Center(
-                                        child: Text(
-                                      target.countdown.toString(),
-                                      style: const TextStyle(fontSize: 60),
-                                    )),
-                                  ),
-                                ],
-                              );
-                          }
-                        },
-                        onWillAccept: (Die? data) {
-                          setState(() {
-                            hoveringDie = data;
-                          });
-                          return data != null;
-                        },
-                        onAccept: (Die data) {
-                          insertDie(
-                              data,
-                              widget.setState,
-                              (a) => a
-                                  ? widget.machine.standby[0] = hoveringDie
-                                  : widget.machine.standby[0] = hoveringDie = null,
-                              widget.player,
-                              widget.opponent,
-                              widget.oldDice,
-                              widget.endTurn,
-                              widget.machine);
-                        },
-                        onLeave: (die) {
-                          setState(() {
-                            hoveringDie = null;
-                          });
-                        },
+                padding: const EdgeInsets.all(kInnerMachinePadding),
+                child: SizedBox(
+                  height: widget.machine.tall
+                      ? kTallMachineHeight
+                      : kShortMachineHeight,
+                  width: kMachineWidth,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const SizedBox(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (DieSlot target in widget.machine.dieSlots)
+                            DragTarget<Die>(
+                              builder: (BuildContext context,
+                                  List<Die?> candidateData,
+                                  List<dynamic> rejectedData) {
+                                if (widget.machine.standby[
+                                        widget.machine.dieSlots.indexOf(target)]
+                                    is Die) {
+                                  return dieWidget(
+                                      widget
+                                          .machine
+                                          .standby[widget.machine.dieSlots
+                                              .indexOf(target)]!
+                                          .copyWith(visible: true)!,
+                                      false,
+                                      kDieSize,
+                                      kDieSize);
+                                }
+                                switch (target) {
+                                  case NormalDieSlot():
+                                    return DottedBorder(
+                                      color: Colors.white,
+                                      radius: const Radius.circular(kRadius),
+                                      borderType: BorderType.RRect,
+                                      child: const SizedBox(
+                                        width: kDieSize,
+                                        height: kDieSize,
+                                      ),
+                                    );
+                                  case CountdownDieSlot():
+                                    return DottedBorder(
+                                      color: Colors.white,
+                                      radius: const Radius.circular(kRadius),
+                                      borderType: BorderType.RRect,
+                                      child: SizedBox(
+                                        width: kDieSize,
+                                        height: kDieSize,
+                                        child: Center(
+                                            child: Text(
+                                          target.countdown.toString(),
+                                          style: const TextStyle(fontSize: 60),
+                                        )),
+                                      ),
+                                    );
+                                }
+                              },
+                              onWillAccept: (Die? data) {
+                                setState(() {
+                                  hoveringDie = data;
+                                });
+                                return data != null;
+                              },
+                              onAccept: (Die data) {
+                                insertDie(
+                                    data,
+                                    widget.setState,
+                                    (a) => a
+                                        ? widget.machine.standby[0] =
+                                            hoveringDie
+                                        : widget.machine.standby[0] =
+                                            hoveringDie = null,
+                                    widget.player,
+                                    widget.opponent,
+                                    widget.oldDice,
+                                    widget.endTurn,
+                                    widget.machine);
+                              },
+                              onLeave: (die) {
+                                setState(() {
+                                  hoveringDie = null;
+                                });
+                              },
+                            ),
+                        ],
                       ),
-                    Text(
-                      widget.machine.description.replaceAll(
-                        '<> ',
-                        hoveringDie != null ? '${hoveringDie?.number} ' : '🎲',
-                      ),
-                    )
-                  ],
+                      Text(
+                        widget.machine.description.replaceAll(
+                          '<> ',
+                          hoveringDie != null
+                              ? '${hoveringDie?.number} '
+                              : '🎲',
+                        ),
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),
